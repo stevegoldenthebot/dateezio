@@ -99,8 +99,7 @@ em { font-style: italic; color: var(--wax-deep); }
 .btn:disabled { opacity: .35; cursor: not-allowed; }
 .arena .btn { position: absolute; }
 #yes { left: calc(50% - 98px); top: 18px; }
-#no { left: calc(50% + 14px); top: 18px; transition: left .22s cubic-bezier(.3,1.3,.5,1), top .22s cubic-bezier(.3,1.3,.5,1), background .2s; }
-#no.flying { position: fixed; z-index: 5; }
+#no { left: calc(50% + 14px); top: 18px; transition: left .38s cubic-bezier(.3,1.3,.5,1), top .38s cubic-bezier(.3,1.3,.5,1), background .2s; }
 .taunt { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; min-height: 1.4em; font-family: var(--display); font-style: italic; font-size: 17px; color: var(--ink-soft); }
 
 /* Choix */
@@ -280,7 +279,6 @@ let tries = 0, surrendered = false, lastDodge = 0, pointer = null;
 function surrender() {
   const no = $("no");
   surrendered = true;
-  no.classList.remove("flying");
   no.textContent = "Oui";
   no.className = "btn primary";
   no.style.left = "calc(50% + 14px)"; no.style.top = "18px";
@@ -291,37 +289,35 @@ function dodge(e) {
   if (surrendered) return;
   if (e && e.cancelable) e.preventDefault();
   const now = Date.now();
-  if (now - lastDodge < 220) return;
+  if (now - lastDodge < 380) return;
   lastDodge = now;
   tries++;
   $("taunt").textContent = TAUNTS[Math.min(tries - 1, TAUNTS.length - 1)];
   if (tries >= MAX_DODGES) { surrender(); return; }
   const no = $("no"), yes = $("yes"), card = $("card");
   const b = no.getBoundingClientRect(), c = card.getBoundingClientRect(), y = yes.getBoundingClientRect();
-  if (!no.classList.contains("flying")) {
-    no.style.left = b.left + "px"; no.style.top = b.top + "px";
-    no.classList.add("flying"); void no.offsetWidth;
-  }
-  const pad = 22, w = b.width, h = b.height;
-  const minL = c.left + pad, maxL = c.right - pad - w, minT = c.top + pad, maxT = c.bottom - pad - h;
+  const a = $("arena").getBoundingClientRect(), w = b.width, h = b.height;
+  const minL = a.left, maxL = a.right - w, minT = a.top, maxT = a.bottom - h - 26;
   const px = pointer ? pointer.x : b.left + w / 2, py = pointer ? pointer.y : b.top + h / 2;
-  let best = null, bestD = -1;
-  for (let k = 0; k < 40; k++) {
+  let best = null, bestScore = -1e9;
+  for (let k = 0; k < 60; k++) {
     const l = minL + Math.random() * Math.max(0, maxL - minL);
     const t = minT + Math.random() * Math.max(0, maxT - minT);
     const clearYes = l > y.right + 14 || l + w < y.left - 14 || t > y.bottom + 14 || t + h < y.top - 14;
     if (!clearYes) continue;
-    const d = Math.hypot(l + w / 2 - px, t + h / 2 - py);
-    if (d > bestD) { bestD = d; best = { l, t }; }
-    if (d > 180) break;
+    const hop = Math.hypot(l - b.left, t - b.top);          // distance parcourue
+    if (hop < 70 || hop > 150) continue;                     // ni micro-saut, ni saut trop lointain
+    const away = Math.hypot(l + w / 2 - px, t + h / 2 - py); // loin du curseur
+    const score = away;                                      // le plus loin du curseur
+    if (score > bestScore) { bestScore = score; best = { l, t }; }
   }
-  if (!best) best = { l: maxL, t: maxT };
-  no.style.left = best.l + "px"; no.style.top = best.t + "px";
+  if (!best) best = { l: Math.min(maxL, Math.max(minL, b.left + (b.left > (minL + maxL) / 2 ? -110 : 110))), t: b.top };
+  no.style.left = (best.l - a.left) + "px"; no.style.top = (best.t - a.top) + "px";
 }
 document.addEventListener("pointermove", (e) => {
   pointer = { x: e.clientX, y: e.clientY };
   if (surrendered || $("s1").hidden || e.pointerType === "touch") return;
-  const r = $("no").getBoundingClientRect(), m = 70;
+  const r = $("no").getBoundingClientRect(), m = 40;
   if (e.clientX > r.left - m && e.clientX < r.right + m && e.clientY > r.top - m && e.clientY < r.bottom + m) dodge(e);
 });
 $("no").addEventListener("pointerdown", dodge);
