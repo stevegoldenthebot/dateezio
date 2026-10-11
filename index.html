@@ -99,7 +99,8 @@ em { font-style: italic; color: var(--wax-deep); }
 .btn:disabled { opacity: .35; cursor: not-allowed; }
 .arena .btn { position: absolute; }
 #yes { left: calc(50% - 98px); top: 18px; }
-#no { left: calc(50% + 14px); top: 18px; transition: left .35s cubic-bezier(.3,1.4,.5,1), top .35s cubic-bezier(.3,1.4,.5,1), background .2s; }
+#no { left: calc(50% + 14px); top: 18px; transition: left .22s cubic-bezier(.3,1.3,.5,1), top .22s cubic-bezier(.3,1.3,.5,1), background .2s; }
+#no.flying { position: fixed; z-index: 5; }
 .taunt { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; min-height: 1.4em; font-family: var(--display); font-style: italic; font-size: 17px; color: var(--ink-soft); }
 
 /* Choix */
@@ -108,8 +109,15 @@ em { font-style: italic; color: var(--wax-deep); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .chip { padding: 10px 16px; font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .chip[aria-pressed="true"] { background: var(--wax-deep); border-color: var(--wax-deep); color: #fbeee9; }
-#hours { display: grid; grid-template-columns: repeat(4, 1fr); max-height: 132px; overflow-y: auto; width: 100%; padding: 2px; scroll-snap-type: y proximity; }
-#hours .chip { padding: 9px 0; scroll-snap-align: start; }
+.select { position: relative; width: 100%; }
+.select::after { content: ""; position: absolute; right: 16px; top: 50%; width: 8px; height: 8px; border-right: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink); translate: 0 -70%; rotate: 45deg; pointer-events: none; }
+select { appearance: none; -webkit-appearance: none; color-scheme: light; width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: 1px solid var(--ink); border-radius: 2px; padding: 13px 40px 13px 14px; cursor: pointer; text-align: left; }
+select.empty { color: var(--ink-soft); }
+select option { color: #2a1a22; background: #f2ebe6; }
+.modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: rgba(15,8,12,.72); }
+.modal-card { background: var(--paper); color: var(--ink); max-width: 360px; width: 100%; padding: 30px 24px 20px; border-radius: 4px; text-align: center; display: grid; gap: 14px; box-shadow: 0 40px 70px -25px rgba(0,0,0,.8); animation: rise .35s both; }
+.modal-card h3 { font-family: var(--display); font-weight: 400; font-size: 30px; margin: 0; line-height: 1.05; text-wrap: balance; }
+.modal-card p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink-soft); }
 .group-label { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); margin: 0; }
 .group { display: grid; gap: 10px; width: 100%; justify-items: center; }
 .field { width: 100%; }
@@ -182,12 +190,12 @@ a.btn { text-decoration: none; display: block; text-align: center; }
       <span class="eyebrow">Quand · 3 sur 3</span>
       <h2>Quel jour, quelle heure&nbsp;?</h2>
       <div class="group">
-        <p class="group-label">Jour</p>
-        <div class="chips" id="days" role="group" aria-label="Jour"></div>
+        <label class="group-label" for="daySel">Jour</label>
+        <div class="select"><select id="daySel" class="empty"></select></div>
       </div>
       <div class="group">
-        <p class="group-label">Heure</p>
-        <div class="chips" id="hours" role="group" aria-label="Heure"></div>
+        <label class="group-label" for="hourSel">Heure</label>
+        <div class="select"><select id="hourSel" class="empty"></select></div>
       </div>
       <button class="btn primary wide" id="whenNext" disabled>Valider</button>
       <button class="back" id="back4" type="button">Retour</button>
@@ -201,7 +209,7 @@ a.btn { text-decoration: none; display: block; text-align: center; }
       <p class="sub" id="finalPlan"></p>
       <p class="quote" id="quote"></p>
       <div class="actions">
-        <a class="btn primary" id="notify">Prévenir l'intéressé</a>
+        <button class="btn primary" id="notify" type="button">Prévenir l'intéressé</button>
         <a class="btn" id="gcal" target="_blank" rel="noopener" hidden>Ajouter à mon calendrier</a>
       </div>
       <p class="step-hint" id="stepHint">Un message s'ouvre, tu n'as plus qu'à l'envoyer.</p>
@@ -209,12 +217,21 @@ a.btn { text-decoration: none; display: block; text-align: center; }
   </div>
 </main>
 
+<div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-card">
+    <h3 id="modalTitle">Un message va s'ouvrir</h3>
+    <p>Il est déjà écrit pour l'intéressé : tu n'as plus qu'à l'envoyer. Reviens ensuite sur cette page pour ajouter le date directement dans ton calendrier.</p>
+    <a class="btn primary" id="smsGo">Ouvrir le message</a>
+    <button class="back" id="modalCancel" type="button">Annuler</button>
+  </div>
+</div>
+
 <script>
 /* ===== À modifier pour chaque invitation ===== */
 const CONFIG = {
   organisateur: "Ezio",
   numero: "33634140208",       // format international sans +
-  horaires: Array.from({ length: 24 }, (_, i) => `${String((i + 8) % 24).padStart(2, "0")}:00`), // 08:00 → 07:00
+  horaires: Array.from({ length: 48 }, (_, i) => { const m = (480 + i * 30) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; }), // 08:00 → 07:30
   nbJours: 6,                  // nombre de jours proposés à partir de demain
   duree: 3,                    // heures, pour le calendrier
   signature: "J'ai déjà hâte."
@@ -258,35 +275,57 @@ $("env").addEventListener("click", () => {
 });
 
 /* 1. Bouton Non qui fuit */
-let tries = 0;
+const MAX_DODGES = 8;
+let tries = 0, surrendered = false, lastDodge = 0, pointer = null;
+function surrender() {
+  const no = $("no");
+  surrendered = true;
+  no.classList.remove("flying");
+  no.textContent = "Oui";
+  no.className = "btn primary";
+  no.style.left = "calc(50% + 14px)"; no.style.top = "18px";
+  $("taunt").textContent = "Voilà, on est d'accord.";
+  setTimeout(() => { no.onclick = () => show("s2"); }, 600);
+}
 function dodge(e) {
-  if (e) e.preventDefault();
-  const arena = $("arena"), no = $("no"), yes = $("yes");
+  if (surrendered) return;
+  if (e && e.cancelable) e.preventDefault();
+  const now = Date.now();
+  if (now - lastDodge < 220) return;
+  lastDodge = now;
   tries++;
   $("taunt").textContent = TAUNTS[Math.min(tries - 1, TAUNTS.length - 1)];
-  if (tries >= 8) {
-    no.textContent = "Oui";
-    no.className = "btn primary";
-    no.removeEventListener("pointerenter", dodge);
-    no.removeEventListener("pointerdown", dodge);
-    no.style.left = "calc(50% + 14px)"; no.style.top = "18px";
-    $("taunt").textContent = "Voilà, on est d'accord.";
-    setTimeout(() => { no.onclick = () => show("s2"); }, 600);
-    return;
+  if (tries >= MAX_DODGES) { surrender(); return; }
+  const no = $("no"), yes = $("yes"), card = $("card");
+  const b = no.getBoundingClientRect(), c = card.getBoundingClientRect(), y = yes.getBoundingClientRect();
+  if (!no.classList.contains("flying")) {
+    no.style.left = b.left + "px"; no.style.top = b.top + "px";
+    no.classList.add("flying"); void no.offsetWidth;
   }
-  const a = arena.getBoundingClientRect(), b = no.getBoundingClientRect(), y = yes.getBoundingClientRect();
-  const maxL = a.width - b.width, maxT = a.height - b.height - 28;
-  let l, t, ok = false, n = 0;
-  while (!ok && n++ < 30) {
-    l = Math.random() * maxL; t = Math.random() * maxT;
-    const r = { x: a.left + l, y: a.top + t, w: b.width, h: b.height };
-    ok = r.x > y.right + 10 || r.x + r.w < y.left - 10 || r.y > y.bottom + 10 || r.y + r.h < y.top - 10;
+  const pad = 22, w = b.width, h = b.height;
+  const minL = c.left + pad, maxL = c.right - pad - w, minT = c.top + pad, maxT = c.bottom - pad - h;
+  const px = pointer ? pointer.x : b.left + w / 2, py = pointer ? pointer.y : b.top + h / 2;
+  let best = null, bestD = -1;
+  for (let k = 0; k < 40; k++) {
+    const l = minL + Math.random() * Math.max(0, maxL - minL);
+    const t = minT + Math.random() * Math.max(0, maxT - minT);
+    const clearYes = l > y.right + 14 || l + w < y.left - 14 || t > y.bottom + 14 || t + h < y.top - 14;
+    if (!clearYes) continue;
+    const d = Math.hypot(l + w / 2 - px, t + h / 2 - py);
+    if (d > bestD) { bestD = d; best = { l, t }; }
+    if (d > 180) break;
   }
-  no.style.left = l + "px"; no.style.top = t + "px";
+  if (!best) best = { l: maxL, t: maxT };
+  no.style.left = best.l + "px"; no.style.top = best.t + "px";
 }
-$("no").addEventListener("pointerenter", dodge);
+document.addEventListener("pointermove", (e) => {
+  pointer = { x: e.clientX, y: e.clientY };
+  if (surrendered || $("s1").hidden || e.pointerType === "touch") return;
+  const r = $("no").getBoundingClientRect(), m = 70;
+  if (e.clientX > r.left - m && e.clientX < r.right + m && e.clientY > r.top - m && e.clientY < r.bottom + m) dodge(e);
+});
 $("no").addEventListener("pointerdown", dodge);
-$("no").addEventListener("click", (e) => { if (tries < 8) e.preventDefault(); });
+$("no").addEventListener("click", (e) => { if (!surrendered) e.preventDefault(); });
 $("yes").addEventListener("click", () => show("s2"));
 
 /* 2. Type de date */
@@ -331,23 +370,27 @@ $("detailNext").addEventListener("click", () => {
   const isOther = state.type === "autre" || detailPick === "Autre";
   state.detail = isOther ? typed : detailPick;
   show("s4");
-  scrollHours();
 });
 
 /* 4. Jour et heure */
 const today = new Date();
 const dayList = [];
-for (let i = 1; i <= CONFIG.nbJours; i++) {
+for (let i = 1; i <= 75; i++) {
   const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-  dayList.push({ date: d, text: `${jours[d.getDay()].slice(0, 3)}. ${d.getDate()}` });
+  dayList.push({ date: d, text: cap(`${jours[d.getDay()]} ${d.getDate()} ${mois[d.getMonth()]}`) });
+}
+function fillSelect(sel, items, placeholder) {
+  sel.innerHTML = "";
+  const p = document.createElement("option");
+  p.value = ""; p.textContent = placeholder; p.disabled = true; p.selected = true;
+  sel.appendChild(p);
+  items.forEach((t, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = t; sel.appendChild(o); });
 }
 function updateWhenNext() { $("whenNext").disabled = !(state.day && state.hour); }
-chipGroup($("days"), dayList, (l) => { state.day = l.date; updateWhenNext(); });
-chipGroup($("hours"), CONFIG.horaires, (l) => { state.hour = l; updateWhenNext(); });
-function scrollHours() {
-  const c = $("hours"), t = [...c.children].find(x => x.textContent === "19:00");
-  if (t) c.scrollTop = t.offsetTop - c.offsetTop - 2;
-}
+fillSelect($("daySel"), dayList.map(d => d.text), "Choisis un jour");
+fillSelect($("hourSel"), CONFIG.horaires, "Choisis une heure");
+$("daySel").addEventListener("change", (e) => { state.day = dayList[+e.target.value].date; e.target.classList.remove("empty"); updateWhenNext(); });
+$("hourSel").addEventListener("change", (e) => { state.hour = CONFIG.horaires[+e.target.value]; e.target.classList.remove("empty"); updateWhenNext(); });
 $("back4").addEventListener("click", () => openDetail(state.type));
 
 /* 5. Fin */
@@ -365,7 +408,7 @@ $("whenNext").addEventListener("click", () => {
   $("quote").textContent = `« ${CONFIG.signature} »`;
 
   const msg = `Oui pour le date ! ${plan}, ${dateLong} à ${state.hour}.`;
-  $("notify").href = `sms:+${CONFIG.numero}?&body=` + encodeURIComponent(msg);
+  $("smsGo").href = `sms:+${CONFIG.numero}?&body=` + encodeURIComponent(msg);
 
   const start = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(hh)}${pad(mm)}00`;
   const e = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hh + CONFIG.duree, mm);
@@ -377,10 +420,14 @@ $("whenNext").addEventListener("click", () => {
     "&details=" + encodeURIComponent(plan);
 
   $("gcal").hidden = true;
-  $("stepHint").textContent = "Un message s'ouvre, tu n'as plus qu'à l'envoyer.";
+  $("notify").classList.add("primary"); $("gcal").classList.remove("primary");
+  $("stepHint").textContent = "Ensuite, reviens ici pour ajouter le date à ton agenda.";
   show("s5");
 });
-$("notify").addEventListener("click", () => {
+$("notify").addEventListener("click", () => { $("modal").hidden = false; });
+$("modalCancel").addEventListener("click", () => { $("modal").hidden = true; });
+$("smsGo").addEventListener("click", () => {
+  $("modal").hidden = true;
   setTimeout(() => {
     $("gcal").hidden = false;
     $("notify").classList.remove("primary");
