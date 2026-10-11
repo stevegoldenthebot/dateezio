@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Date avec Ezio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Concept: une seule carte posée sur un fond nuit. L'enveloppe s'ouvre, la carte glisse, les écrans se succèdent dans la même carte. */
+:root {
+  --night: #1b1319;
+  --night-2: #2a1c25;
+  --paper: #f2ebe6;
+  --paper-edge: #e4d9d2;
+  --ink: #2a1a22;
+  --ink-soft: #7b6670;
+  --wax: #c23b2b;
+  --wax-deep: #8f2619;
+  --display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: radial-gradient(120% 80% at 50% 0%, var(--night-2), var(--night) 70%);
+  color: var(--paper);
+  font-family: var(--body);
+  padding-inline: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+}
+.stage { width: 100%; max-width: 400px; position: relative; padding-block: 16px; }
+
+/* ---------- Envelope ---------- */
+.env-wrap { display: grid; justify-items: center; gap: 28px; }
+.env {
+  position: relative; width: 100%; aspect-ratio: 1.45; border: 0; padding: 0; cursor: pointer;
+  background: var(--paper-edge); border-radius: 6px;
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,.6);
+  perspective: 900px; font: inherit; color: inherit;
+}
+.env::before {
+  content: ""; position: absolute; inset: 0; border-radius: 6px;
+  background:
+    linear-gradient(to bottom right, transparent 49.6%, rgba(0,0,0,.06) 50%, var(--paper) 50.4%) left / 50% 100% no-repeat,
+    linear-gradient(to bottom left,  transparent 49.6%, rgba(0,0,0,.06) 50%, var(--paper) 50.4%) right / 50% 100% no-repeat;
+}
+.flap {
+  position: absolute; left: 0; right: 0; top: 0; height: 56%;
+  background: var(--paper); transform-origin: top; transition: transform .7s cubic-bezier(.6,.05,.2,1);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.18));
+}
+.seal {
+  position: absolute; left: 50%; top: 56%; width: 54px; height: 54px; translate: -50% -50%;
+  border-radius: 50%; background: radial-gradient(circle at 35% 30%, #dd5340, var(--wax) 55%, var(--wax-deep));
+  box-shadow: 0 4px 10px rgba(0,0,0,.35), inset 0 -3px 5px rgba(0,0,0,.25);
+  display: grid; place-items: center; transition: opacity .3s, scale .3s;
+  font-family: var(--display); font-style: italic; font-size: 26px; color: #f9d9d2;
+}
+.env.open .flap { transform: rotateX(180deg); }
+.env.open .seal { opacity: 0; scale: .6; }
+.env-hint { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #a8929c; }
+.env-to { font-family: var(--display); font-style: italic; font-size: 26px; color: var(--paper); }
+.env:focus-visible, button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--wax); outline-offset: 3px; }
+
+/* ---------- Card ---------- */
+.card {
+  background: var(--paper); color: var(--ink); border-radius: 4px;
+  padding: 44px 28px 32px; text-align: center; position: relative;
+  box-shadow: 0 40px 70px -25px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.4);
+  min-height: 480px; display: flex; flex-direction: column; justify-content: center;
+}
+.card::after { content: ""; position: absolute; inset: 8px; border: 1px solid rgba(42,26,34,.14); pointer-events: none; }
+.screen { animation: rise .6s cubic-bezier(.2,.7,.2,1) both; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.eyebrow { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-soft); }
+h1, h2 { font-family: var(--display); font-weight: 400; margin: 0; line-height: 1.04; text-wrap: balance; }
+h1 { font-size: clamp(40px, 11vw, 50px); }
+h2 { font-size: 36px; }
+em { font-style: italic; color: var(--wax-deep); }
+.sub { margin: 0; font-size: 14px; color: var(--ink-soft); line-height: 1.5; max-width: 30ch; }
+
+.arena { position: relative; width: 100%; height: 150px; margin-top: 6px; }
+.btn {
+  font: inherit; font-weight: 600; font-size: 15px; border-radius: 2px; cursor: pointer;
+  padding: 14px 30px; border: 1px solid var(--ink); background: transparent; color: var(--ink);
+  transition: background .2s, color .2s, opacity .2s;
+}
+.btn.primary { background: var(--wax-deep); border-color: var(--wax-deep); color: #fbeee9; }
+.btn.primary:hover:not(:disabled) { background: var(--wax); border-color: var(--wax); }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.arena .btn { position: absolute; }
+#yes { left: calc(50% - 98px); top: 18px; }
+#no { left: calc(50% + 14px); top: 18px; transition: left .35s cubic-bezier(.3,1.4,.5,1), top .35s cubic-bezier(.3,1.4,.5,1), background .2s; }
+.taunt { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; min-height: 1.4em; font-family: var(--display); font-style: italic; font-size: 17px; color: var(--ink-soft); }
+
+/* Choix */
+.types { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+.types .btn { padding: 22px 12px; font-family: var(--display); font-weight: 400; font-size: 24px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.chip { padding: 10px 16px; font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] { background: var(--wax-deep); border-color: var(--wax-deep); color: #fbeee9; }
+#hours { display: grid; grid-template-columns: repeat(4, 1fr); max-height: 132px; overflow-y: auto; width: 100%; padding: 2px; scroll-snap-type: y proximity; }
+#hours .chip { padding: 9px 0; scroll-snap-align: start; }
+.group-label { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); margin: 0; }
+.group { display: grid; gap: 10px; width: 100%; justify-items: center; }
+.field { width: 100%; }
+.field input {
+  font: inherit; font-family: var(--display); font-style: italic; font-size: 19px; color: var(--ink);
+  background: transparent; border: 0; border-bottom: 1px solid rgba(42,26,34,.4); padding: 6px 2px; text-align: center; border-radius: 0; width: 100%;
+}
+.field input::placeholder { color: var(--ink-soft); opacity: .7; }
+.wide { width: 100%; }
+.back { background: none; border: 0; font: inherit; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; padding: 4px; }
+
+/* Fin */
+.heart { width: 52px; height: 52px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #dd5340, var(--wax) 55%, var(--wax-deep)); display: grid; place-items: center; color: #f9d9d2; font-size: 22px; animation: beat 1.6s ease-in-out infinite; }
+@keyframes beat { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.final-when { font-family: var(--display); font-size: 36px; line-height: 1.05; margin: 0; text-wrap: balance; }
+.quote { font-family: var(--display); font-style: italic; font-size: 18px; color: var(--ink-soft); margin: 0; max-width: 28ch; }
+.actions { display: grid; gap: 10px; width: 100%; }
+a.btn { text-decoration: none; display: block; text-align: center; }
+.step-hint { font-size: 12px; color: var(--ink-soft); margin: 0; min-height: 1.2em; }
+
+@media (max-width: 380px) { .card { padding-inline: 20px; } #yes { left: calc(50% - 90px); } #no { left: calc(50% + 8px); } .btn { padding-inline: 24px; } }
+@media (prefers-reduced-motion: reduce) { .screen, .heart { animation: none; } .flap, #no { transition: none; } }
+</style>
+
+<main class="stage" id="stage">
+  <!-- Enveloppe -->
+  <section class="env-wrap" id="s0">
+    <span class="env-to">Pour toi</span>
+    <button class="env" id="env" aria-label="Ouvrir l'enveloppe">
+      <span class="flap"></span><span class="seal" aria-hidden="true">&amp;</span>
+    </button>
+    <span class="env-hint">Touche pour ouvrir</span>
+  </section>
+
+  <div class="card" id="card" hidden>
+    <!-- 1. La question -->
+    <section class="screen" id="s1" hidden>
+      <span class="eyebrow">Une question</span>
+      <h1>Ça te dit un date <em>avec moi</em>&nbsp;?</h1>
+      <p class="sub">Dire non ne sert à rien, mais tu peux essayer.</p>
+      <div class="arena" id="arena">
+        <button class="btn primary" id="yes">Oui</button>
+        <button class="btn" id="no">Non</button>
+        <p class="taunt" id="taunt" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <!-- 2. Type de date -->
+    <section class="screen" id="s2" hidden>
+      <span class="eyebrow">Parfait · 1 sur 3</span>
+      <h2>Tu verrais quoi&nbsp;?</h2>
+      <div class="types" id="types"></div>
+      <button class="back" id="back2" type="button">Retour</button>
+    </section>
+
+    <!-- 3. Détail -->
+    <section class="screen" id="s3" hidden>
+      <span class="eyebrow">Plus précisément · 2 sur 3</span>
+      <h2 id="detailTitle"></h2>
+      <div class="chips" id="detailChips" role="group" aria-label="Choix"></div>
+      <div class="field" id="otherField" hidden>
+        <input id="otherInput" type="text" maxlength="60" autocomplete="off" placeholder="Écris ce qui te ferait envie">
+      </div>
+      <button class="btn primary wide" id="detailNext" disabled>Continuer</button>
+      <button class="back" id="back3" type="button">Retour</button>
+    </section>
+
+    <!-- 4. Quand -->
+    <section class="screen" id="s4" hidden>
+      <span class="eyebrow">Quand · 3 sur 3</span>
+      <h2>Quel jour, quelle heure&nbsp;?</h2>
+      <div class="group">
+        <p class="group-label">Jour</p>
+        <div class="chips" id="days" role="group" aria-label="Jour"></div>
+      </div>
+      <div class="group">
+        <p class="group-label">Heure</p>
+        <div class="chips" id="hours" role="group" aria-label="Heure"></div>
+      </div>
+      <button class="btn primary wide" id="whenNext" disabled>Valider</button>
+      <button class="back" id="back4" type="button">Retour</button>
+    </section>
+
+    <!-- 5. C'est noté -->
+    <section class="screen" id="s5" hidden>
+      <div class="heart" aria-hidden="true">♥</div>
+      <span class="eyebrow">C'est noté</span>
+      <p class="final-when" id="finalWhen"></p>
+      <p class="sub" id="finalPlan"></p>
+      <p class="quote" id="quote"></p>
+      <div class="actions">
+        <a class="btn primary" id="notify">Prévenir l'intéressé</a>
+        <a class="btn" id="gcal" target="_blank" rel="noopener" hidden>Ajouter à mon calendrier</a>
+      </div>
+      <p class="step-hint" id="stepHint">Un message s'ouvre, tu n'as plus qu'à l'envoyer.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+/* ===== À modifier pour chaque invitation ===== */
+const CONFIG = {
+  organisateur: "Ezio",
+  numero: "33634140208",       // format international sans +
+  horaires: Array.from({ length: 24 }, (_, i) => `${String((i + 8) % 24).padStart(2, "0")}:00`), // 08:00 → 07:00
+  nbJours: 6,                  // nombre de jours proposés à partir de demain
+  duree: 3,                    // heures, pour le calendrier
+  signature: "J'ai déjà hâte."
+};
+const OPTIONS = {
+  resto:    { label: "Resto",    title: "Qu'est-ce qui te ferait envie ?", items: ["Italien", "Japonais", "Bistrot français", "Libanais", "Burger", "Végétarien"] },
+  bar:      { label: "Bar",      title: "Plutôt quel genre de bar ?",      items: ["Cocktails", "Bar à vin", "Rooftop", "Bar à jeux", "Pub", "Bière artisanale"] },
+  activite: { label: "Activité", title: "Et pour l'activité ?",            items: ["Balade", "Ciné", "Expo", "Bowling", "Mini-golf", "Escape game"] },
+  autre:    { label: "Autre",    title: "Dis-moi ce qui te ferait plaisir", items: [] }
+};
+const TAUNTS = ["Presque.", "Raté.", "Il glisse, hein ?", "Tu insistes.", "Courageux.", "Plus que quelques essais.", "Bon, d'accord."];
+/* ============================================ */
+
+const $ = (id) => document.getElementById(id);
+const SCREENS = ["s1", "s2", "s3", "s4", "s5"];
+const show = (id) => { SCREENS.forEach(s => $(s).hidden = s !== id); };
+const jours = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const pad = (n) => String(n).padStart(2, "0");
+const state = { type: null, detail: "", day: null, hour: null };
+
+/* Chips à choix unique */
+function chipGroup(container, labels, onPick) {
+  container.innerHTML = "";
+  labels.forEach((l, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn chip"; b.textContent = l.text ?? l; b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => {
+      container.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      onPick(l, i);
+    });
+    container.appendChild(b);
+  });
+}
+
+/* Enveloppe */
+$("env").addEventListener("click", () => {
+  $("env").classList.add("open");
+  setTimeout(() => { $("s0").hidden = true; $("card").hidden = false; show("s1"); }, 850);
+});
+
+/* 1. Bouton Non qui fuit */
+let tries = 0;
+function dodge(e) {
+  if (e) e.preventDefault();
+  const arena = $("arena"), no = $("no"), yes = $("yes");
+  tries++;
+  $("taunt").textContent = TAUNTS[Math.min(tries - 1, TAUNTS.length - 1)];
+  if (tries >= 8) {
+    no.textContent = "Oui";
+    no.className = "btn primary";
+    no.removeEventListener("pointerenter", dodge);
+    no.removeEventListener("pointerdown", dodge);
+    no.style.left = "calc(50% + 14px)"; no.style.top = "18px";
+    $("taunt").textContent = "Voilà, on est d'accord.";
+    setTimeout(() => { no.onclick = () => show("s2"); }, 600);
+    return;
+  }
+  const a = arena.getBoundingClientRect(), b = no.getBoundingClientRect(), y = yes.getBoundingClientRect();
+  const maxL = a.width - b.width, maxT = a.height - b.height - 28;
+  let l, t, ok = false, n = 0;
+  while (!ok && n++ < 30) {
+    l = Math.random() * maxL; t = Math.random() * maxT;
+    const r = { x: a.left + l, y: a.top + t, w: b.width, h: b.height };
+    ok = r.x > y.right + 10 || r.x + r.w < y.left - 10 || r.y > y.bottom + 10 || r.y + r.h < y.top - 10;
+  }
+  no.style.left = l + "px"; no.style.top = t + "px";
+}
+$("no").addEventListener("pointerenter", dodge);
+$("no").addEventListener("pointerdown", dodge);
+$("no").addEventListener("click", (e) => { if (tries < 8) e.preventDefault(); });
+$("yes").addEventListener("click", () => show("s2"));
+
+/* 2. Type de date */
+Object.entries(OPTIONS).forEach(([key, o]) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "btn"; b.textContent = o.label;
+  b.addEventListener("click", () => openDetail(key));
+  $("types").appendChild(b);
+});
+$("back2").addEventListener("click", () => show("s1"));
+
+/* 3. Détail */
+let detailPick = "";
+function updateDetailNext() {
+  const typed = $("otherInput").value.trim();
+  const isOther = state.type === "autre" || detailPick === "Autre";
+  $("detailNext").disabled = isOther ? !typed : !detailPick;
+}
+function openDetail(key) {
+  state.type = key; detailPick = "";
+  const o = OPTIONS[key];
+  $("detailTitle").textContent = o.title;
+  $("otherInput").value = "";
+  const isFree = key === "autre";
+  $("detailChips").hidden = isFree;
+  $("otherField").hidden = !isFree;
+  if (!isFree) {
+    chipGroup($("detailChips"), [...o.items, "Autre"], (l) => {
+      detailPick = l;
+      $("otherField").hidden = l !== "Autre";
+      if (l === "Autre") $("otherInput").focus();
+      updateDetailNext();
+    });
+  }
+  updateDetailNext();
+  show("s3");
+}
+$("otherInput").addEventListener("input", updateDetailNext);
+$("back3").addEventListener("click", () => show("s2"));
+$("detailNext").addEventListener("click", () => {
+  const typed = $("otherInput").value.trim();
+  const isOther = state.type === "autre" || detailPick === "Autre";
+  state.detail = isOther ? typed : detailPick;
+  show("s4");
+  scrollHours();
+});
+
+/* 4. Jour et heure */
+const today = new Date();
+const dayList = [];
+for (let i = 1; i <= CONFIG.nbJours; i++) {
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+  dayList.push({ date: d, text: `${jours[d.getDay()].slice(0, 3)}. ${d.getDate()}` });
+}
+function updateWhenNext() { $("whenNext").disabled = !(state.day && state.hour); }
+chipGroup($("days"), dayList, (l) => { state.day = l.date; updateWhenNext(); });
+chipGroup($("hours"), CONFIG.horaires, (l) => { state.hour = l; updateWhenNext(); });
+function scrollHours() {
+  const c = $("hours"), t = [...c.children].find(x => x.textContent === "19:00");
+  if (t) c.scrollTop = t.offsetTop - c.offsetTop - 2;
+}
+$("back4").addEventListener("click", () => openDetail(state.type));
+
+/* 5. Fin */
+function planText() {
+  if (state.type === "autre") return cap(state.detail);
+  return `${OPTIONS[state.type].label} : ${state.detail.toLowerCase() === "autre" ? "" : ""}${state.detail}`;
+}
+$("whenNext").addEventListener("click", () => {
+  const d = state.day, [hh, mm] = state.hour.split(":").map(Number);
+  const dateLong = `${jours[d.getDay()]} ${d.getDate()} ${mois[d.getMonth()]}`;
+  const plan = planText();
+
+  $("finalWhen").textContent = `${cap(dateLong)} à ${state.hour}`;
+  $("finalPlan").textContent = plan;
+  $("quote").textContent = `« ${CONFIG.signature} »`;
+
+  const msg = `Oui pour le date ! ${plan}, ${dateLong} à ${state.hour}.`;
+  $("notify").href = `sms:+${CONFIG.numero}?&body=` + encodeURIComponent(msg);
+
+  const start = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(hh)}${pad(mm)}00`;
+  const e = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hh + CONFIG.duree, mm);
+  const end = `${e.getFullYear()}${pad(e.getMonth() + 1)}${pad(e.getDate())}T${pad(e.getHours())}${pad(e.getMinutes())}00`;
+  $("gcal").href = "https://calendar.google.com/calendar/render?action=TEMPLATE" +
+    "&text=" + encodeURIComponent(`Date avec ${CONFIG.organisateur} - ${state.hour}`) +
+    "&dates=" + start + "/" + end +
+    "&ctz=Europe/Paris" +
+    "&details=" + encodeURIComponent(plan);
+
+  $("gcal").hidden = true;
+  $("stepHint").textContent = "Un message s'ouvre, tu n'as plus qu'à l'envoyer.";
+  show("s5");
+});
+$("notify").addEventListener("click", () => {
+  setTimeout(() => {
+    $("gcal").hidden = false;
+    $("notify").classList.remove("primary");
+    $("gcal").classList.add("primary");
+    $("stepHint").textContent = "Dernière étape : garde la date dans ton agenda.";
+  }, 300);
+});
+</script>
+
+</html>
